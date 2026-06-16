@@ -3,6 +3,7 @@
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 import os
+import re
 import sqlite3
 import threading
 import uuid
@@ -14,12 +15,25 @@ _db_lock = threading.RLock()
 
 
 def _connect():
-    os.makedirs(os.path.dirname(config.DB_PATH), exist_ok=True)
+    db_dir = os.path.dirname(os.path.abspath(config.DB_PATH))
+    os.makedirs(db_dir, exist_ok=True)
     connection = sqlite3.connect(config.DB_PATH, timeout=30)
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA foreign_keys = ON")
     connection.execute("PRAGMA journal_mode = WAL")
     return connection
+
+
+def _normalise_interval(interval):
+    value = str(interval or "24h").strip().lower()
+    match = re.fullmatch(r"(\d+)\s*([mhd])", value)
+    if not match:
+        raise ValueError("Interval must use minutes, hours, or days, such as 30m, 24h, or 7d")
+    amount = int(match.group(1))
+    if amount <= 0:
+        raise ValueError("Interval must be greater than zero")
+    unit = match.group(2)
+    return f"{amount}{unit}", amount * {"m": 60, "h": 3600, "d": 86400}[unit]
 
 
 def init_db():
@@ -337,9 +351,7 @@ def get_target(target_id):
 
 def upsert_target(url, monitor_enabled=True, interval="24h", alerts_enabled=True):
     now = datetime.now(timezone.utc).isoformat()
-    unit = interval[-1].lower()
-    amount = int(interval[:-1])
-    seconds = amount * {"m": 60, "h": 3600, "d": 86400}[unit]
+    interval, seconds = _normalise_interval(interval)
     next_run = (datetime.now(timezone.utc) + timedelta(seconds=seconds)).isoformat()
     target_id = str(uuid.uuid4())
     with _db_lock, _connect() as connection:

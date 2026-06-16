@@ -41,12 +41,17 @@ def parse_interval(interval_str):
 
 def _scanner_names(scan_type):
     if isinstance(scan_type, (list, tuple, set)):
-        names = [str(item).lower() for item in scan_type]
+        values = []
+        for item in scan_type:
+            values.extend(re.split(r"[,+\s]+", str(item).lower()))
+        names = [item for item in values if item]
     else:
         value = str(scan_type or "all").lower()
         names = list(SCANNER_CLASSES) if value == "all" else re.split(r"[,+\s]+", value)
     names = [name for name in names if name in SCANNER_CLASSES]
-    return list(dict.fromkeys(names)) or list(SCANNER_CLASSES)
+    if not names:
+        raise ValueError("Scan type must include web, network, api, or all")
+    return list(dict.fromkeys(names))
 
 
 def _initial_state(scan_id, target, names):

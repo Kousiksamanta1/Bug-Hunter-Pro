@@ -6,6 +6,7 @@ import csv
 import io
 import json
 import os
+import re
 import threading
 import uuid
 
@@ -53,11 +54,28 @@ def _error(message, status=400):
 
 
 def _scan_type_names(scan_types):
+    values = []
     if isinstance(scan_types, str):
-        values = [item for item in scan_types.replace(",", " ").split() if item]
+        values.extend(re.split(r"[,+\s]+", scan_types))
     else:
-        values = list(scan_types or [])
-    return {str(item).strip().lower() for item in values}
+        for item in scan_types or []:
+            values.extend(re.split(r"[,+\s]+", str(item)))
+    return {str(item).strip().lower() for item in values if str(item).strip()}
+
+
+def _as_bool(value):
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    if isinstance(value, (int, float)):
+        return bool(value)
+    text = str(value).strip().lower()
+    if text in {"1", "true", "yes", "y", "on"}:
+        return True
+    if text in {"0", "false", "no", "n", "off", ""}:
+        return False
+    return bool(value)
 
 
 def _validate_bug_bounty_target(target, program_name, scan_types=None):
@@ -98,7 +116,7 @@ def scan_start():
             target,
             data.get("scan_type", "all"),
             data.get("mode", "manual"),
-            notify=bool(data.get("alerts", False)),
+            notify=_as_bool(data.get("alerts", False)),
         )
     except OutOfScopeError as exc:
         return _error(str(exc), 403)
@@ -189,7 +207,9 @@ def add_target():
     url = str(data.get("url", "")).strip()
     if not url:
         return _error("Target URL is required")
-    if config.BUG_BOUNTY_MODE and bool(data.get("monitor_enabled", True)):
+    monitor_enabled = _as_bool(data.get("monitor_enabled", True))
+    alerts_enabled = _as_bool(data.get("alerts", True))
+    if config.BUG_BOUNTY_MODE and monitor_enabled:
         return _error("Recurring monitoring is disabled in bug bounty mode")
     try:
         scheduler.parse_interval(data.get("interval", "24h"))
@@ -197,9 +217,9 @@ def add_target():
         return _error(str(exc))
     target = models.upsert_target(
         url,
-        bool(data.get("monitor_enabled", True)),
+        monitor_enabled,
         data.get("interval", "24h"),
-        bool(data.get("alerts", True)),
+        alerts_enabled,
     )
     scheduler.refresh_schedules()
     return jsonify(models.get_target(target["id"])), 201
@@ -335,7 +355,7 @@ def settings():
                 elif field == "REQUESTS_PER_SECOND":
                     value = float(value)
                 elif field == "BUG_BOUNTY_MODE":
-                    value = bool(value)
+                    value = _as_bool(value)
                 setattr(config, field, value)
             config.validate_bug_bounty_settings()
         except (TypeError, ValueError) as exc:

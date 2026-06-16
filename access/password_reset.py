@@ -3,7 +3,7 @@
 import logging
 import math
 import re
-from urllib.parse import parse_qs, urljoin, urlparse
+from urllib.parse import urljoin
 
 from bs4 import BeautifulSoup
 import requests

@@ -5,7 +5,7 @@ import logging
 import socket
 import ssl
 import time
-from urllib.parse import quote_plus, urlparse
+from urllib.parse import urlparse
 
 import dns.query
 import dns.resolver
