@@ -56,8 +56,18 @@ class CallbackServer:
                     self._record()
 
                 def _record(self):
-                    length = min(int(self.headers.get("Content-Length", "0") or 0), 1_000_000)
+                    try:
+                        requested_length = int(
+                            self.headers.get("Content-Length", "0") or 0
+                        )
+                    except ValueError:
+                        requested_length = 0
+                    max_body = max(0, int(config.OOB_MAX_BODY_BYTES))
+                    length = min(max(requested_length, 0), max_body)
                     body = self.rfile.read(length).decode("utf-8", errors="replace")
+                    truncated = requested_length > length
+                    if truncated:
+                        self.close_connection = True
                     parsed = urlparse(self.path)
                     values = parse_qs(parsed.query)
                     extracted = {
@@ -65,6 +75,10 @@ class CallbackServer:
                         for name in ("c", "d", "u", "h", "event")
                         if name in values
                     }
+                    if truncated:
+                        extracted["truncated_body"] = True
+                        extracted["declared_body_bytes"] = requested_length
+                        extracted["stored_body_bytes"] = length
                     callback = {
                         "id": str(uuid.uuid4()),
                         "callback_type": "http",

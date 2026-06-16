@@ -53,14 +53,19 @@ def _error(message, status=400):
     return jsonify({"error": message}), status
 
 
-def _scan_type_names(scan_types):
+def _scan_type_list(scan_types):
     values = []
     if isinstance(scan_types, str):
         values.extend(re.split(r"[,+\s]+", scan_types))
     else:
         for item in scan_types or []:
             values.extend(re.split(r"[,+\s]+", str(item)))
-    return {str(item).strip().lower() for item in values if str(item).strip()}
+    cleaned = [str(item).strip().lower() for item in values if str(item).strip()]
+    return list(dict.fromkeys(cleaned))
+
+
+def _scan_type_names(scan_types):
+    return set(_scan_type_list(scan_types))
 
 
 def _as_bool(value):
@@ -76,6 +81,22 @@ def _as_bool(value):
     if text in {"0", "false", "no", "n", "off", ""}:
         return False
     return bool(value)
+
+
+def _valid_recon_modules(scan_types):
+    names = _scan_type_list(scan_types)
+    allowed = {"subdomain", "js", "fingerprint", "wayback", "dork"}
+    selected = [name for name in names if name in allowed]
+    invalid = set(names) - allowed
+    return selected, invalid
+
+
+def _valid_exploit_modules(scan_types):
+    names = _scan_type_list(scan_types)
+    allowed = {"blind_xss", "sqli", "ssrf", "ssti", "oauth", "idor"}
+    selected = [name for name in names if name in allowed]
+    invalid = set(names) - allowed
+    return selected, invalid
 
 
 def _validate_bug_bounty_target(target, program_name, scan_types=None):
@@ -96,6 +117,11 @@ def _validate_bug_bounty_target(target, program_name, scan_types=None):
 @bp.get("/")
 def dashboard():
     return render_template("index.html", app_version=config.APP_VERSION)
+
+
+@bp.get("/api/health")
+def health():
+    return jsonify({"status": "ok", "version": config.APP_VERSION})
 
 
 @bp.post("/api/scan/start")
@@ -465,17 +491,22 @@ def recon_start():
         "scan_types",
         ["subdomain", "js", "fingerprint", "wayback", "dork"],
     )
+    selected, invalid = _valid_recon_modules(scan_types)
+    if invalid:
+        return _error(f"Unknown recon module(s): {', '.join(sorted(invalid))}")
+    if not selected:
+        return _error("Select at least one recon module")
     try:
         _validate_bug_bounty_target(
             target,
             data.get("program_name"),
-            scan_types,
+            selected,
         )
     except OutOfScopeError as exc:
         return _error(str(exc), 403)
     except ValueError as exc:
         return _error(str(exc))
-    if config.BUG_BOUNTY_MODE and "subdomain" in _scan_type_names(scan_types):
+    if config.BUG_BOUNTY_MODE and "subdomain" in selected:
         return _error("Subdomain enumeration is disabled in bug bounty mode")
     recon_id = str(uuid.uuid4())
     with JOB_LOCK:
@@ -489,7 +520,7 @@ def recon_start():
         }
     thread = threading.Thread(
         target=_run_recon_job,
-        args=(recon_id, target, scan_types),
+        args=(recon_id, target, selected),
         name=f"recon-{recon_id[:8]}",
         daemon=True,
     )
@@ -608,17 +639,20 @@ def exploit_start():
         scope.validate_before_scan(target)
     except OutOfScopeError as exc:
         return _error(str(exc), 403)
+    scan_types = data.get("scan_types", [])
+    selected, invalid = _valid_exploit_modules(scan_types)
+    if invalid:
+        return _error(f"Unknown exploit module(s): {', '.join(sorted(invalid))}")
+    if not selected:
+        return _error("Select at least one exploit module")
     try:
         if not callback_server.is_running():
             callback_server.start(config.OOB_HTTP_PORT, config.OOB_DNS_PORT)
     except OSError as exc:
         return _error(f"Unable to start OOB callback server: {exc}", 503)
     callback_url = str(data.get("callback_url") or callback_server.get_callback_url())
-    scan_types = data.get("scan_types", [])
-    if isinstance(scan_types, str):
-        scan_types = [scan_types]
     exploit_id = str(uuid.uuid4())
-    _new_scan_record(exploit_id, target, f"exploit:{','.join(scan_types)}")
+    _new_scan_record(exploit_id, target, f"exploit:{','.join(selected)}")
     with JOB_LOCK:
         EXPLOIT_JOBS[exploit_id] = {
             "exploit_id": exploit_id,
@@ -632,7 +666,7 @@ def exploit_start():
     headers = data.get("headers") or {}
     thread = threading.Thread(
         target=_run_exploit_job,
-        args=(exploit_id, target, scan_types, callback_url, headers),
+        args=(exploit_id, target, selected, callback_url, headers),
         name=f"exploit-{exploit_id[:8]}",
         daemon=True,
     )

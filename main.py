@@ -2,6 +2,8 @@
 """Bug Hunter Pro application entry point."""
 
 import argparse
+import hmac
+import ipaddress
 import logging
 import os
 import signal
@@ -12,7 +14,7 @@ import time
 import webbrowser
 import uuid
 
-from flask import Flask
+from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 import config
@@ -37,6 +39,29 @@ BANNER = r"""
 """
 
 
+def _is_loopback(remote_addr):
+    try:
+        return ipaddress.ip_address(remote_addr or "127.0.0.1").is_loopback
+    except ValueError:
+        return False
+
+
+def _api_token_from_request():
+    authorization = request.headers.get("Authorization", "")
+    if authorization.lower().startswith("bearer "):
+        return authorization[7:].strip()
+    return request.headers.get("X-BugHunter-Token", "").strip()
+
+
+def _api_request_allowed():
+    if request.path == "/api/health":
+        return True
+    if _is_loopback(request.remote_addr):
+        return True
+    expected = str(config.DASHBOARD_API_TOKEN or "").strip()
+    return bool(expected and hmac.compare_digest(_api_token_from_request(), expected))
+
+
 def create_app():
     init_db()
     app = Flask(
@@ -56,6 +81,20 @@ def create_app():
             }
         },
     )
+
+    @app.before_request
+    def restrict_remote_api_access():
+        if request.path.startswith("/api/") and not _api_request_allowed():
+            return jsonify(
+                {
+                    "error": (
+                        "API access is restricted to localhost unless "
+                        "DASHBOARD_API_TOKEN is configured"
+                    )
+                }
+            ), 403
+        return None
+
     app.register_blueprint(bp)
     return app
 

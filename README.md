@@ -105,8 +105,12 @@ Common settings:
 | `SMTP_USER`, `SMTP_PASS` | SMTP credentials |
 | `SLACK_WEBHOOK_URL` | Slack incoming webhook URL |
 | `NUCLEI_PATH` | Path to the `nuclei` executable |
+| `FLASK_HOST`, `FLASK_PORT` | Dashboard bind address and port. Defaults to localhost. |
+| `DASHBOARD_API_TOKEN` | Bearer or `X-BugHunter-Token` value required for API access from non-localhost clients |
 | `DB_PATH` | SQLite database path |
 | `REPORT_OUTPUT_DIR` | PDF/HTML report output directory |
+| `OOB_HTTP_PORT`, `OOB_DNS_PORT` | HTTP and DNS ports for the callback receiver |
+| `OOB_MAX_BODY_BYTES` | Maximum callback request body stored per OOB event |
 
 Keep `.env`, generated reports, and SQLite databases out of version control.
 

@@ -99,7 +99,8 @@ class NucleiRunner:
             lines = stdout.splitlines()
             if os.path.isfile(output_file):
                 with open(output_file, "r", encoding="utf-8") as handle:
-                    lines.extend(handle.read().splitlines())
+                    for line in handle:
+                        lines.append(line.rstrip("\n"))
             unique = {}
             for line in lines:
                 finding = self.parse_nuclei_output(line)
