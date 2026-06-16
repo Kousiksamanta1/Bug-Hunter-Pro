@@ -1,0 +1,15 @@
+*.sqlite
+*.db
+reports/
+*.log
+.env
+__pycache__/
+*.pyc
+.DS_Store
+*.pdf
+*.html
+!dashboard/templates/*.html
+.venv/
+venv/
+.pytest_cache/
+.coverage

@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Bug Hunter Pro authorized vulnerability scanning dashboard">
+  <title>Bug Hunter Pro</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js" defer></script>
+  <script src="{{ url_for('static', filename='js/charts.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/dashboard.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/findings.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/scanner.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/monitor.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/recon.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/exploit.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/oob.js') }}" defer></script>
+  <script src="{{ url_for('static', filename='js/intelligence.js') }}" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="#dashboard" data-tab-link="dashboard">
+      <span class="brand-mark">BH</span>
+      <span>BUG HUNTER PRO</span>
+      <small>v{{ app_version }}</small>
+    </a>
+    <button class="mobile-menu" id="mobile-menu" aria-label="Toggle navigation">MENU</button>
+    <nav class="tabs" id="main-tabs" aria-label="Main navigation">
+      <button class="tab-link active" data-tab="dashboard">Dashboard</button>
+      <button class="tab-link" data-tab="new-scan">New Scan</button>
+      <button class="tab-link" data-tab="findings">Findings</button>
+      <button class="tab-link" data-tab="reports">Reports</button>
+      <button class="tab-link" data-tab="history">History</button>
+      <button class="tab-link" data-tab="monitoring">Monitoring</button>
+      <button class="tab-link" data-tab="recon">Recon</button>
+      <button class="tab-link" data-tab="exploit-lab">Exploit Lab</button>
+      <button class="tab-link" data-tab="intelligence">Intelligence</button>
+      <button class="tab-link" data-tab="settings">Settings</button>
+    </nav>
+    <div class="system-status"><span class="status-dot"></span> SYSTEM ONLINE</div>
+  </header>
+
+  <main class="shell">
+    <section class="tab-panel active" id="tab-dashboard">
+      <div class="page-heading">
+        <div><p class="eyebrow">SECURITY OVERVIEW</p><h1>Dashboard</h1></div>
+        <div class="last-updated">Last sync <span id="last-updated">--</span></div>
+      </div>
+      <div class="stat-grid">
+        <article class="stat-card accent-cyan"><span>Total Scans</span><strong id="stat-total-scans">0</strong><small>all assessments</small></article>
+        <article class="stat-card accent-critical"><span>Critical</span><strong id="stat-critical">0</strong><small>immediate action</small></article>
+        <article class="stat-card accent-high"><span>High</span><strong id="stat-high">0</strong><small>priority queue</small></article>
+        <article class="stat-card accent-medium"><span>Medium</span><strong id="stat-medium">0</strong><small>security backlog</small></article>
+        <article class="stat-card accent-low"><span>Low</span><strong id="stat-low">0</strong><small>hardening items</small></article>
+      </div>
+      <div class="chart-grid chart-grid-primary">
+        <article class="panel chart-panel"><div class="panel-title"><h2>Findings By Type</h2><span>TOP 10</span></div><div class="chart-wrap"><canvas id="vulnerability-chart"></canvas></div></article>
+        <article class="panel chart-panel"><div class="panel-title"><h2>Severity Breakdown</h2><span>ALL TIME</span></div><div class="chart-wrap"><canvas id="severity-chart"></canvas></div></article>
+      </div>
+      <div class="chart-grid">
+        <article class="panel chart-panel"><div class="panel-title"><h2>30-Day Trend</h2><span>FINDINGS</span></div><div class="chart-wrap"><canvas id="trend-chart"></canvas></div></article>
+        <article class="panel chart-panel"><div class="panel-title"><h2>OWASP Coverage</h2><span>TOP 10</span></div><div class="chart-wrap"><canvas id="owasp-chart"></canvas></div></article>
+      </div>
+      <article class="panel">
+        <div class="panel-title"><h2>Recent Scans</h2><button class="btn btn-ghost" data-tab-jump="history">View History</button></div>
+        <div class="table-wrap">
+          <table><thead><tr><th>Target</th><th>Type</th><th>Date</th><th>Critical</th><th>High</th><th>Medium</th><th>Risk Score</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody id="recent-scans-body"><tr><td colspan="9" class="empty-state">No scans recorded.</td></tr></tbody></table>
+        </div>
+      </article>
+    </section>
+
+    <section class="tab-panel" id="tab-new-scan">
+      <div class="page-heading"><div><p class="eyebrow">AUTHORIZED ASSESSMENT</p><h1>New Scan</h1></div></div>
+      <div class="split-layout">
+        <form class="panel scan-form" id="scan-form">
+          <div class="panel-title"><h2>Scan Configuration</h2><span>01 / CONFIGURE</span></div>
+          <div class="consent safety-notice" id="scan-safety-notice" hidden><span>RING SAFE MODE: traffic is identified, rate-limited, pinned to one host, and restricted to web/API checks.</span></div>
+          <label class="field full"><span>Target URL, IP, or domain</span><input id="scan-target" name="target" type="text" placeholder="https://example.com" required></label>
+          <label class="field full"><span>Saved scope program <small>required in bug bounty mode</small></span><input id="scan-scope-program" placeholder="ring"></label>
+          <fieldset><legend>Scan type</legend><div class="checkbox-grid">
+            <label class="choice"><input type="checkbox" name="scan_type" value="web" checked><span>WEB</span><small>Headers, TLS, XSS, SQLi, CORS</small></label>
+            <label class="choice"><input type="checkbox" name="scan_type" value="network" checked><span>NETWORK</span><small>Ports, services, CVEs, DNS</small></label>
+            <label class="choice"><input type="checkbox" name="scan_type" value="api" checked><span>API</span><small>Auth, rate limits, JWT, data</small></label>
+          </div></fieldset>
+          <div class="form-grid">
+            <label class="field"><span>Mode</span><select id="scan-mode"><option value="manual">Manual</option><option value="scheduled">Scheduled</option></select></label>
+            <label class="field" id="scan-schedule-field" hidden><span>Schedule interval</span><select id="scan-schedule"><option value="24h">24 hours</option><option value="7d">7 days</option><option value="custom">Custom</option></select></label>
+            <label class="field" id="scan-custom-field" hidden><span>Custom interval</span><input id="scan-custom-interval" placeholder="12h"></label>
+            <label class="field"><span>Output</span><select id="scan-output"><option value="dashboard">Dashboard</option><option value="pdf">PDF</option><option value="html">HTML</option><option value="all">All</option></select></label>
+          </div>
+          <label class="consent"><input type="checkbox" id="scan-consent" required><span>I confirm that I own this target or have explicit written permission to test it. I understand unauthorized scanning may be illegal.</span></label>
+          <p class="form-error" id="scan-form-error" role="alert"></p>
+          <button class="btn btn-primary btn-wide" type="submit">START AUTHORIZED SCAN</button>
+        </form>
+
+        <article class="panel progress-panel" id="scan-progress-panel">
+          <div class="panel-title"><h2>Live Scan Progress</h2><span id="scan-live-status">IDLE</span></div>
+          <div class="target-display"><span>TARGET</span><strong id="progress-target">No active target</strong></div>
+          <div class="progress-heading"><span>Overall progress</span><strong id="progress-percent">0%</strong></div>
+          <div class="progress-track"><div class="progress-bar" id="overall-progress"></div></div>
+          <div class="scanner-rows">
+            <div class="scanner-row" data-scanner-row="web"><div><strong>WEB SCANNER</strong><span class="status-badge">PENDING</span></div><div class="mini-track"><i></i></div><small>0 findings</small></div>
+            <div class="scanner-row" data-scanner-row="network"><div><strong>NETWORK SCANNER</strong><span class="status-badge">PENDING</span></div><div class="mini-track"><i></i></div><small>0 findings</small></div>
+            <div class="scanner-row" data-scanner-row="api"><div><strong>API SCANNER</strong><span class="status-badge">PENDING</span></div><div class="mini-track"><i></i></div><small>0 findings</small></div>
+          </div>
+          <div class="live-feed-heading"><h3>Live Findings Feed</h3><span id="live-finding-count">0</span></div>
+          <div class="live-feed" id="live-findings"><div class="empty-state">Findings will appear here as checks complete.</div></div>
+          <button class="btn btn-danger btn-wide" id="stop-scan-button" type="button" hidden>STOP SCAN</button>
+        </article>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="tab-findings">
+      <div class="page-heading"><div><p class="eyebrow">VULNERABILITY REGISTER</p><h1>Findings</h1></div><button class="btn" id="export-findings">EXPORT CSV</button></div>
+      <article class="panel filter-bar">
+        <div class="severity-filters" id="severity-filters">
+          <button class="filter-button active" data-severity="">ALL</button>
+          <button class="filter-button critical" data-severity="CRITICAL">CRITICAL</button>
+          <button class="filter-button high" data-severity="HIGH">HIGH</button>
+          <button class="filter-button medium" data-severity="MEDIUM">MEDIUM</button>
+          <button class="filter-button low" data-severity="LOW">LOW</button>
+          <button class="filter-button info" data-severity="INFO">INFO</button>
+        </div>
+        <label class="compact-field"><span>Scanner</span><select id="finding-scanner"><option value="">All scanners</option><option value="web">Web</option><option value="network">Network</option><option value="api">API</option></select></label>
+        <label class="compact-field search-field"><span>Search</span><input id="finding-search" type="search" placeholder="Title or URL"></label>
+        <label class="toggle"><input type="checkbox" id="show-false-positives" checked><i></i><span>False positives</span></label>
+      </article>
+      <article class="panel"><div class="table-wrap"><table class="findings-table"><thead><tr><th>Severity</th><th>Title</th><th>Scanner</th><th>URL</th><th>CVSS</th><th>OWASP</th><th>MITRE</th><th>Date</th><th>Actions</th></tr></thead><tbody id="findings-body"></tbody></table></div><div class="table-footer"><span id="finding-result-count">0 findings</span></div></article>
+    </section>
+
+    <section class="tab-panel" id="tab-reports">
+      <div class="page-heading"><div><p class="eyebrow">EXPORT CENTER</p><h1>Reports</h1></div></div>
+      <article class="panel"><div class="panel-title"><h2>Completed Assessments</h2><span>PDF / HTML</span></div><div class="table-wrap"><table><thead><tr><th>Target</th><th>Date</th><th>Severity Counts</th><th>Risk</th><th>PDF</th><th>HTML</th><th>Preview</th></tr></thead><tbody id="reports-body"></tbody></table></div></article>
+      <article class="panel report-preview"><div class="panel-title"><h2>Report Preview</h2><span id="preview-label">SELECT A SCAN</span></div><div id="report-preview-content" class="empty-state">Choose “View in Dashboard” to preview an assessment.</div></article>
+    </section>
+
+    <section class="tab-panel" id="tab-history">
+      <div class="page-heading"><div><p class="eyebrow">ASSESSMENT ARCHIVE</p><h1>History</h1></div></div>
+      <div class="history-grid">
+        <article class="panel"><div class="panel-title"><h2>Scan Timeline</h2><span>NEWEST FIRST</span></div><div class="timeline" id="scan-timeline"></div></article>
+        <article class="panel comparison-panel">
+          <div class="panel-title"><h2>Compare Scans</h2><span>DIFF ENGINE</span></div>
+          <div class="form-grid"><label class="field"><span>Baseline scan</span><select id="compare-first"></select></label><label class="field"><span>New scan</span><select id="compare-second"></select></label></div>
+          <button class="btn btn-primary btn-wide" id="compare-scans">COMPARE FINDINGS</button>
+          <div id="comparison-results" class="comparison-results"><div class="empty-state">Select two scans to compare.</div></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="tab-monitoring">
+      <div class="page-heading"><div><p class="eyebrow">CONTINUOUS ASSURANCE</p><h1>Monitoring</h1></div></div>
+      <form class="panel monitoring-form" id="monitor-form">
+        <label class="field"><span>Target URL</span><input id="monitor-target" placeholder="https://example.com" required></label>
+        <label class="field"><span>Interval</span><select id="monitor-interval"><option value="1h">Hourly</option><option value="24h" selected>Daily</option><option value="7d">Weekly</option><option value="custom">Custom</option></select></label>
+        <label class="field" id="monitor-custom-field" hidden><span>Custom</span><input id="monitor-custom" placeholder="12h"></label>
+        <label class="toggle monitoring-toggle"><input id="monitor-alerts" type="checkbox" checked><i></i><span>Enable alerts</span></label>
+        <button class="btn btn-primary" type="submit">ADD TO MONITORING</button>
+      </form>
+      <p class="form-error" id="monitor-safety-message"></p>
+      <article class="panel"><div class="panel-title"><h2>Monitored Targets</h2><span id="monitor-count">0 TARGETS</span></div><div class="table-wrap"><table><thead><tr><th>Target</th><th>Added</th><th>Last Scan</th><th>Next Scan</th><th>Total Findings</th><th>Status</th><th>Actions</th></tr></thead><tbody id="monitor-targets-body"></tbody></table></div></article>
+      <article class="panel"><div class="panel-title"><h2>Alert History</h2><span>DELIVERY LOG</span></div><div class="table-wrap"><table><thead><tr><th>Target</th><th>Finding</th><th>Severity</th><th>Alert Type</th><th>Sent At</th><th>Status</th></tr></thead><tbody id="alert-history-body"></tbody></table></div></article>
+    </section>
+
+    <section class="tab-panel" id="tab-recon">
+      <div class="page-heading"><div><p class="eyebrow">ATTACK SURFACE DISCOVERY</p><h1>Recon</h1></div><span class="status-label" id="recon-status">IDLE</span></div>
+      <form class="panel" id="recon-form">
+        <div class="panel-title"><h2>Recon Configuration</h2><span>PASSIVE + LOW IMPACT</span></div>
+        <div class="consent safety-notice" id="recon-safety-notice" hidden><span>RING SAFE MODE: subdomain enumeration is disabled. Save and use one exact scoped host.</span></div>
+        <label class="field full"><span>Target domain or URL</span><input id="recon-target" placeholder="https://example.com" required></label>
+        <label class="field full"><span>Saved scope program <small>required in bug bounty mode</small></span><input id="recon-scope-program" placeholder="ring"></label>
+        <fieldset><legend>Modules</legend><div class="checkbox-grid recon-module-grid">
+          <label class="choice"><input type="checkbox" name="recon_type" value="subdomain" checked><span>SUBDOMAIN ENUM</span><small>DNS, CT logs, and liveness</small></label>
+          <label class="choice"><input type="checkbox" name="recon_type" value="js" checked><span>JS ANALYSIS</span><small>Endpoints and exposed secrets</small></label>
+          <label class="choice"><input type="checkbox" name="recon_type" value="fingerprint" checked><span>TECH FINGERPRINT</span><small>Frameworks, CMS, CDN, and WAF</small></label>
+          <label class="choice"><input type="checkbox" name="recon_type" value="wayback" checked><span>WAYBACK CRAWL</span><small>Historical endpoints and parameters</small></label>
+          <label class="choice"><input type="checkbox" name="recon_type" value="dork" checked><span>DORK GENERATOR</span><small>Manual search queries only</small></label>
+        </div></fieldset>
+        <label class="consent"><input type="checkbox" id="recon-consent" required><span>I confirm I am authorized to enumerate this target and its related assets.</span></label>
+        <p class="form-error" id="recon-error" role="alert"></p>
+        <button class="btn btn-primary btn-wide" type="submit">START RECON</button>
+        <div class="progress-track compact-progress"><div class="progress-bar" id="recon-progress"></div></div>
+      </form>
+
+      <article class="panel">
+        <div class="panel-title"><h2>Subdomains</h2><div class="panel-actions"><span id="recon-subdomain-summary">0 found / 0 alive</span><button class="btn btn-small" id="recon-export-subdomains" type="button">EXPORT CSV</button></div></div>
+        <div class="table-wrap"><table><thead><tr><th>Subdomain</th><th>IP</th><th>Status</th><th>Server</th><th>Response Time</th><th>Discovered By</th><th>Actions</th></tr></thead><tbody id="recon-subdomains-body"><tr><td colspan="7" class="empty-state">Run recon to discover subdomains.</td></tr></tbody></table></div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-title"><h2>JavaScript Analysis</h2><span id="recon-js-summary">0 files / 0 findings</span></div>
+        <div class="table-wrap"><table><thead><tr><th>JS File</th><th>Finding Type</th><th>Severity</th><th>Value</th><th>Line</th><th>Actions</th></tr></thead><tbody id="recon-js-body"><tr><td colspan="6" class="empty-state">No JavaScript results yet.</td></tr></tbody></table></div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-title"><h2>Technology Fingerprint</h2><span>OBSERVED STACK</span></div>
+        <div class="fingerprint-grid" id="recon-tech-stack"><div class="empty-state">No fingerprint collected.</div></div>
+        <div class="result-block"><h3>Interesting Paths</h3><div id="recon-interesting-paths" class="chip-list"><span class="muted-copy">No paths found.</span></div></div>
+        <div id="recon-tech-findings"></div>
+      </article>
+
+      <div class="extension-grid">
+        <article class="panel">
+          <div class="panel-title"><h2>Google Dorks</h2><button class="btn btn-small" id="recon-copy-dorks" type="button">COPY ALL</button></div>
+          <div id="recon-dorks"><div class="empty-state">No dorks generated.</div></div>
+        </article>
+        <article class="panel">
+          <div class="panel-title"><h2>Wayback Results</h2><span id="recon-wayback-summary">0 URLs</span></div>
+          <div class="result-tabs" id="recon-wayback-filters">
+            <button class="filter-button active" type="button" data-wayback-category="all">ALL URLS</button>
+            <button class="filter-button" type="button" data-wayback-category="api_endpoints">API</button>
+            <button class="filter-button" type="button" data-wayback-category="admin_panels">ADMIN</button>
+            <button class="filter-button" type="button" data-wayback-category="config_files">CONFIG</button>
+            <button class="filter-button" type="button" data-wayback-category="interesting_params">PARAMS</button>
+          </div>
+          <div class="table-wrap compact-table"><table><thead><tr><th>URL</th><th>Last Seen</th><th>Status</th><th>Category</th></tr></thead><tbody id="recon-wayback-body"><tr><td colspan="4" class="empty-state">No historical URLs found.</td></tr></tbody></table></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="tab-exploit-lab">
+      <div class="page-heading"><div><p class="eyebrow">AUTHORIZED VALIDATION</p><h1>Exploit Lab</h1></div><span class="status-label" id="exploit-oob-badge">OOB OFFLINE</span></div>
+      <article class="authorization-banner">
+        <div><strong>Only test targets you have explicit permission to test</strong><p>Active validation can create requests, delays, and callback traffic. The target must also be inside a saved program scope.</p></div>
+        <div class="authorization-controls">
+          <label class="field"><span>Saved scope program</span><input id="exploit-program" placeholder="my-bug-bounty-program"></label>
+          <label class="consent"><input type="checkbox" id="exploit-permission"><span>I confirm I have permission to test this target.</span></label>
+        </div>
+      </article>
+      <article class="callback-strip"><div><span>HTTP CALLBACK URL</span><strong id="exploit-callback-url">Loading OOB status...</strong></div><button class="btn btn-small" id="exploit-copy-callback" type="button">COPY</button></article>
+
+      <div class="exploit-grid">
+        <article class="panel exploit-card" data-exploit-module="blind_xss"><div class="panel-title"><h2>Blind XSS</h2><span class="status-badge">READY</span></div><p>Injects callback beacons into common input locations and records each attempt.</p><label class="field"><span>Target URL</span><input class="exploit-target" placeholder="https://example.com/contact"></label><label class="field"><span>Callback URL</span><input class="exploit-callback" placeholder="Auto-filled from OOB"></label><button class="btn btn-primary btn-wide exploit-run" type="button" disabled>RUN BLIND XSS</button><div class="module-results"><div class="empty-state">No attempts yet.</div></div></article>
+        <article class="panel exploit-card" data-exploit-module="sqli"><div class="panel-title"><h2>Advanced SQLi</h2><span class="status-badge">READY</span></div><p>Uses baseline measurements, boolean comparisons, and retried time probes.</p><label class="field"><span>Target URL with parameter</span><input class="exploit-target" placeholder="https://example.com/item?id=1"></label><button class="btn btn-primary btn-wide exploit-run" type="button" disabled>RUN SQLI SCAN</button><div class="module-results"><div class="empty-state">No SQLi results yet.</div></div></article>
+        <article class="panel exploit-card" data-exploit-module="ssrf"><div class="panel-title"><h2>SSRF Detector</h2><span class="status-badge">READY</span></div><p>Checks URL parameters using local addresses and your callback listener.</p><label class="field"><span>Target URL</span><input class="exploit-target" placeholder="https://example.com/fetch?url=https://example.org"></label><label class="field"><span>Callback URL</span><input class="exploit-callback" placeholder="Auto-filled from OOB"></label><button class="btn btn-primary btn-wide exploit-run" type="button" disabled>RUN SSRF SCAN</button><div class="module-results"><div class="empty-state">No SSRF results yet.</div></div></article>
+        <article class="panel exploit-card" data-exploit-module="ssti"><div class="panel-title"><h2>SSTI Scanner</h2><span class="status-badge">READY</span></div><p>Tests harmless arithmetic expressions and identifies likely template engines.</p><label class="field"><span>Target URL with parameter</span><input class="exploit-target" placeholder="https://example.com/hello?name=test"></label><button class="btn btn-primary btn-wide exploit-run" type="button" disabled>RUN SSTI SCAN</button><div class="module-results"><div class="empty-state">No SSTI results yet.</div></div></article>
+        <article class="panel exploit-card" data-exploit-module="oauth"><div class="panel-title"><h2>OAuth Tester</h2><span class="status-badge">READY</span></div><p>Reviews redirect URI handling, state enforcement, and token placement.</p><label class="field"><span>Application base URL</span><input class="exploit-target" placeholder="https://example.com"></label><button class="btn btn-primary btn-wide exploit-run" type="button" disabled>RUN OAUTH TEST</button><div class="module-results"><div class="empty-state">No OAuth results yet.</div></div></article>
+        <article class="panel exploit-card" data-exploit-module="idor"><div class="panel-title"><h2>IDOR Tester</h2><span class="status-badge">READY</span></div><p>Mutates numeric and UUID object references and compares response behavior.</p><label class="field"><span>Target URL</span><input class="exploit-target" placeholder="https://example.com/api/users/123"></label><label class="field"><span>Session cookie or Authorization header <small>optional</small></span><input class="exploit-session" type="password" autocomplete="off"></label><button class="btn btn-primary btn-wide exploit-run" type="button" disabled>RUN IDOR TEST</button><div class="module-results"><div class="empty-state">No IDOR results yet.</div></div></article>
+      </div>
+
+      <article class="panel">
+        <div class="panel-title"><h2>OOB Callback Feed</h2><div class="panel-actions"><span>AUTO-REFRESH 5S</span><button class="btn btn-small" id="oob-refresh" type="button">REFRESH</button></div></div>
+        <div class="callback-feed" id="oob-callback-feed"><div class="empty-state">No callbacks received.</div></div>
+      </article>
+    </section>
+
+    <section class="tab-panel" id="tab-intelligence">
+      <div class="page-heading"><div><p class="eyebrow">TRIAGE + AUTOMATION</p><h1>Intelligence</h1></div></div>
+      <div class="extension-grid">
+        <form class="panel" id="scope-form">
+          <div class="panel-title"><h2>Scope Manager</h2><span>ACTIVE TEST BOUNDARY</span></div>
+          <label class="field"><span>Program name</span><input id="scope-program" placeholder="my-bug-bounty-program" required></label>
+          <div class="form-grid textarea-grid"><label class="field"><span>In-scope targets, one per line</span><textarea id="scope-in" rows="7" placeholder="example.com&#10;*.example.com"></textarea></label><label class="field"><span>Out-of-scope targets, one per line</span><textarea id="scope-out" rows="7" placeholder="admin.example.com"></textarea></label></div>
+          <p class="form-error" id="scope-message"></p><button class="btn btn-primary btn-wide" type="submit">SAVE SCOPE</button>
+          <div class="current-scope" id="scope-current"><span class="muted-copy">No scope loaded.</span></div>
+        </form>
+
+        <form class="panel" id="nuclei-form">
+          <div class="panel-title"><h2>Nuclei Runner</h2><span id="nuclei-template-count">CHECKING INSTALLATION</span></div>
+          <label class="field"><span>Target URL</span><input id="nuclei-target" placeholder="https://example.com" required></label>
+          <label class="field"><span>Saved scope program</span><input id="nuclei-program" placeholder="my-bug-bounty-program" required></label>
+          <div class="form-grid"><label class="field"><span>Severity</span><select id="nuclei-severity"><option value="all">All</option><option value="critical">Critical</option><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></label><label class="field"><span>Tags</span><select id="nuclei-tags" multiple size="4"><option value="cve">CVE</option><option value="owasp">OWASP</option><option value="xss">XSS</option><option value="sqli">SQLi</option><option value="ssrf">SSRF</option><option value="rce">RCE</option></select></label></div>
+          <div class="button-row"><button class="btn btn-primary" type="submit">RUN NUCLEI</button><button class="btn" id="nuclei-update" type="button">UPDATE TEMPLATES</button></div>
+          <p class="form-error" id="nuclei-message"></p><div id="nuclei-results"><div class="empty-state">No Nuclei results yet.</div></div>
+        </form>
+      </div>
+
+      <div class="extension-grid">
+        <article class="panel">
+          <div class="panel-title"><h2>Duplicate Checker</h2><span>PUBLIC PRIOR ART</span></div>
+          <label class="field"><span>Finding</span><select id="duplicate-finding"><option value="">Load findings...</option></select></label>
+          <button class="btn btn-primary btn-wide" id="duplicate-check" type="button">CHECK DUPLICATES</button>
+          <div id="duplicate-results"><div class="empty-state">Choose a finding to research.</div></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="tab-panel" id="tab-settings">
+      <div class="page-heading"><div><p class="eyebrow">SYSTEM CONFIGURATION</p><h1>Settings</h1></div></div>
+      <form id="settings-form" class="settings-grid">
+        <article class="panel settings-card"><div class="panel-title"><h2>Bug Bounty Safety</h2><span>RING PROFILE</span></div>
+          <label class="toggle safety-toggle"><input id="setting-bounty-mode" type="checkbox"><i></i><span>Enable production bug-bounty safeguards</span></label>
+          <label class="field"><span>Program profile</span><select id="setting-bounty-program"><option value="">Generic / training</option><option value="ring">Ring</option></select></label>
+          <label class="field"><span>HackerOne username</span><input id="setting-hackerone-handle" autocomplete="off" placeholder="your_h1_username"></label>
+          <label class="field"><span>Maximum requests per second</span><input id="setting-rps" type="number" min="0.1" max="5" step="0.1" value="2"></label>
+          <p class="muted-copy">Ring requires <code>RingResearcher_yourusername</code> as the User-Agent and permits no more than 5 requests per second. This profile defaults to 2.</p>
+        </article>
+        <article class="panel settings-card"><div class="panel-title"><h2>API Keys</h2><span>INTELLIGENCE</span></div>
+          <label class="field"><span>NVD API Key</span><input type="password" id="setting-nvd" autocomplete="off"></label>
+          <label class="field"><span>VirusTotal API Key <small>optional</small></span><input type="password" id="setting-virustotal" autocomplete="off"></label>
+        </article>
+        <article class="panel settings-card"><div class="panel-title"><h2>Email Alerts</h2><span>SMTP</span></div>
+          <label class="field"><span>Alert recipient</span><input type="email" id="setting-email"></label>
+          <div class="form-grid"><label class="field"><span>SMTP host</span><input id="setting-smtp-host"></label><label class="field"><span>Port</span><input type="number" id="setting-smtp-port" value="587"></label></div>
+          <label class="field"><span>SMTP user</span><input id="setting-smtp-user"></label>
+          <label class="field"><span>SMTP password</span><input type="password" id="setting-smtp-pass"></label>
+          <button class="btn btn-ghost test-alert" data-alert-type="email" type="button">TEST EMAIL</button>
+        </article>
+        <article class="panel settings-card"><div class="panel-title"><h2>Slack Alerts</h2><span>WEBHOOK</span></div>
+          <label class="field"><span>Webhook URL</span><input type="password" id="setting-slack"></label>
+          <button class="btn btn-ghost test-alert" data-alert-type="slack" type="button">TEST SLACK</button>
+        </article>
+        <article class="panel settings-card"><div class="panel-title"><h2>Scan Defaults</h2><span>PERFORMANCE</span></div>
+          <label class="field range-field"><span>Request timeout: <b id="timeout-value">10s</b></span><input type="range" id="setting-timeout" min="3" max="60" value="10"></label>
+          <label class="field"><span>Maximum threads</span><input type="number" id="setting-threads" min="1" max="50" value="10"></label>
+          <label class="field"><span>Default output</span><select id="setting-output"><option value="dashboard">Dashboard</option><option value="pdf">PDF</option><option value="html">HTML</option><option value="all">All</option></select></label>
+        </article>
+        <button class="btn btn-primary btn-wide settings-save" type="submit">SAVE CONFIGURATION</button>
+        <p class="settings-message" id="settings-message"></p>
+      </form>
+    </section>
+  </main>
+
+  <div class="modal-overlay" id="finding-modal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <button class="modal-close" id="modal-close" aria-label="Close">×</button>
+      <div id="finding-modal-content"></div>
+    </div>
+  </div>
+  <div class="modal-overlay" id="recon-value-modal" hidden>
+    <div class="modal-card compact-modal" role="dialog" aria-modal="true" aria-labelledby="recon-value-title">
+      <button class="modal-close" id="recon-value-close" aria-label="Close">×</button>
+      <h2 id="recon-value-title">JavaScript Finding</h2>
+      <div class="evidence-block modal-section"><pre id="recon-value-content"></pre></div>
+    </div>
+  </div>
+  <div class="toast-region" id="toast-region" aria-live="polite"></div>
+</body>
+</html>

@@ -1,0 +1,11 @@
+flask
+flask-cors
+python-dotenv
+requests
+beautifulsoup4
+python-nmap
+paramiko
+dnspython
+reportlab
+schedule
+cryptography
